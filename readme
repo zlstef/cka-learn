@@ -1,0 +1,6 @@
+连接集群
+当运行kubectl时，会通过kubeconfig文件读取集群连接信息。
+1. 如果使用了 --kubeconfig 参数，则只读取指定的文件。
+2. 如果设置了 $KUBECONFIG 环境变量，则通过改变量读取信息。
+3. 如果上述2项都没有设置，则读取 ${HOME}/.kube/config文件。
+kubectl get node --kubeconfig=/root/.kube/config2

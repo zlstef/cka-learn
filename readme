@@ -7,3 +7,12 @@
 kubectl get node --kubeconfig=/root/.kube/config2
 
 
+#让容器执行命令
+在yaml文件里，以下两种命令的写法都可以：
+  1.    command: ['sh']
+        args: ['-c', 'touch /data/abcddd.txt']
+	  
+	2.   command: ['sh', '-c', 'touch /data/fefafd.txt']
+  
+  在命令行中，可以使用以下方式：（--command似乎不支持多个命令，只能是command arg1 arg2 ...）
+   k run buxybox --image=busybox --restart=Never --command /bin/echo hello

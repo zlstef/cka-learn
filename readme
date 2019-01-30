@@ -16,3 +16,193 @@ kubectl get node --kubeconfig=/root/.kube/config2
   
   在命令行中，可以使用以下方式：（--command似乎不支持多个命令，只能是command arg1 arg2 ...）
    k run buxybox --image=busybox --restart=Never --command /bin/echo hello
+
+
+sed
+awk
+kubectl sort
+
+etcdctl snapshot/backup?
+
+systemctl status etcd 可以看到data-dir
+
+sudo ETCDCTL_API=3 etcdctl snapshot save snapshotdb2   --endpoints=https://127.0.0.1:2379   --cacert=/etc/etcd/ca.pem   --cert=/etc/etcd/kubernetes.pem --key=/etc/etcd/kubernetes-key.pem
+
+sudo etcdctl backup --data-dir /var/lib/etcd --backup-dir ./
+
+
+
+su
+TLS
+PV
+STATIC PODS
+init container
+daemonset
+安装？
+SElinux
+AppArmor
+排错--
+CRD？
+federation
+Helm
+serviceaccount
+clusterrolebinding
+SYSTEMD
+vim  替换
+
+替换当前行：
+
+:s/foo/bar/g
+全文替换：
+
+:%s/foo/bar/g
+
+
+
+tmux --多屏
+同时输入
+https://blog.csdn.net/samjjx/article/details/54835804
+通过 :setw synchronize-panes on/off来开关
+
+启用滚屏和鼠标功能
+set -g mouse on
+
+
+source <(kubectl completion bash)
+alias k='kubectl'
+alias kgp='kubectl get pods'
+alias kgs='kubectl get svc'
+alias kgc='kubectl get componentstatus'
+
+对K启用自动补齐
+complete -o default -F __start_kubectl k
+
+tr
+sort
+docker 启动命令的格式 
+command: ['sh', '-c', 'echo "" > /root/mnt/lab.txt']
+
+ingress
+https://kubernetes.io/docs/concepts/services-networking/ingress/#prerequisites
+
+筛选输出
+jsonpath
+pods=$(kubectl get pods --selector=job-name=pi --output=jsonpath={.items..metadata.name})
+echo $pods
+
+multi-cluster
+ImagePullSecrets 
+
+cheetsheet
+https://kubernetes.io/docs/reference/kubectl/cheatsheet/
+
+其他资源：
+https://github.com/walidshaari/Kubernetes-Certified-Administrator/blob/master/README.md
+https://medium.com/@pmvk/tips-to-crack-certified-kubernetes-administrator-cka-exam-c949c7a9bea1
+https://github.com/nkuba/k8s-admin-helper
+
+
+
+
+join cluster ?
+touch empty file
+emptydir
+drain node/evict all pod ?
+etcdctl -ca 
+
+secret-- env--file
+
+nslookup pod,svc dns
+
+rollingupdate  --record
+staticPod
+
+kubectl top
+
+sed 
+
+pv capacity 排序
+
+
+init container
+
+ingress rule
+CA PKI
+job
+install cfssl/openssl
+role/rolebinding
+
+
+让新的节点加入集群需要以下步骤：
+1. 创建ca 和 ca-key
+2. 将ca、ca-key分发到master节点
+3. 为kubelet创建ca和key
+4. 用ca-key对kubelet的ca签名
+5. 将kubelet的ca、ca-key分发到node
+
+
+TLS bootstrapping是为了简化并自动化步骤3之后的步骤
+
+bootstrap初始化主要步骤：
+1. kubelet启动发现找不到kubeconfig文件
+2. kubelet搜索并找到bootstrap-kubeconfig文件，获得api-server的url和受限的token
+3. kubelet与api-server认证，并创建csr
+4. csr被approve
+5. ca、ca-key被创建、颁发给kubelet
+6. kubelet用ca、ca-key创建kubeconfig文件
+7. kubelet可以正常与api-server认证
+
+
+
+
+1. kubelet在初始化阶段用 bootstrap-token与api-server认证，此时只有有限的权限-- 此时kubelet被认证为 system:bootstrappers 组里的用户。这个组做了clusterrolebinding，有权限创建csr。
+     
+bootstrap-kubeconfig.yaml里有类似下面的内容，其中token指定了使用的其实是bootstrap-token-aa41e2这个secret	 
+	 users:
+- name: tls-bootstrap-token-user
+  user:
+    token: aa41e2.58185ce9b3021d79
+
+
+auth-extra-groups就是表明使用此token进行认证的group是哪个group
+# Extra groups to authenticate the token as. Must start with "system:bootstrappers:"
+  auth-extra-groups: system:bootstrappers:worker,system:bootstrappers:ingress	
+  
+[root@k8s-lab2 lab]# echo c3lzdGVtOmJvb3RzdHJhcHBlcnM6a3ViZWFkbTpkZWZhdWx0LW5vZGUtdG9rZW4= | base64 -d
+system:bootstrappers:kubeadm:default-node-token
+
+  
+[root@k8s-lab2 ~]# kubectl -n kube-system get secret bootstrap-token-aa41e2 -o yaml
+apiVersion: v1
+data:
+  auth-extra-groups: c3lzdGVtOmJvb3RzdHJhcHBlcnM6a3ViZWFkbTpkZWZhdWx0LW5vZGUtdG9rZW4=
+  description: VGhlIGRlZmF1bHQgYm9vdHN0cmFwIHRva2VuIGdlbmVyYXRlZCBieSAna3ViZWFkbSBpbml0Jy4=
+  token-id: YWE0MWUy
+  token-secret: NTgxODVjZTliMzAyMWQ3OQ==
+  usage-bootstrap-authentication: dHJ1ZQ==
+  usage-bootstrap-signing: dHJ1ZQ==
+kind: Secret
+metadata:
+  creationTimestamp: 2018-11-22T09:15:44Z
+  name: bootstrap-token-aa41e2
+  namespace: kube-system
+  resourceVersion: "166"
+  selfLink: /api/v1/namespaces/kube-system/secrets/bootstrap-token-aa41e2
+  uid: 310946ed-ee37-11e8-9d72-fa163eadf6b8
+type: bootstrap.kubernetes.io/token
+
+token-id就是bootstrap-kubeconfig里指的
+[root@k8s-lab2 ~]# echo YWE0MWUy | base64 -d
+aa41e2  
+  
+2. 认证后授权kubelet创建csr  
+3. csr被自动、手动approve后，kubelet可以正常与api-server认证
+
+
+
+
+
+
+
+
+

@@ -200,7 +200,39 @@ aa41e2
 
 
 
+使用cfssl创建ca和自签名cert
+1. 使用default模板创建配置和csr
+cfssl print-defaults config > ca-config.json
+cfssl print-defaults csr > ca-csr.json
 
+2. 创建ca，使用 initca参数。根据需要修改ca-csr.json。
+$ cfssl gencert -initca ca-csr.json
+
+cfssl创建的内容默认输出到标准输出，需要使用cfssljson输出到文件。
+cfssl gencert -initca ca-csr.json | cfssljson -bare selfca
+
+3. 现在有了ca的cert和key，可以为其他entity办法cert并签名了。
+可以根据需要修改default创建的ca-config.json，比如profile，usage等内容。
+可以根据需要修改default创建的ca-csr.json，比如CN、hosts等内容。
+有些证书需要hostname，可以是主机名、ip等。比如kubelet、kube-apiserver等。
+如果csr里已经写了hosts的配置，命令里面就不用带 -hostname参数了。
+cfssl gencert -ca selfca.pem -ca-key selfca-key.pem -config api-config.json -profile kube-apiserver -hostname controller-4,controller-5 api-csr.json | cfssljson -bare kube-api
+
+4. 一般一个cluster里不同entity使用的ca-config.json一样，crs.json不一样。主要是CN、O等内容不同，标识不同entity。	
+
+
+用 label --overwrite直接更改现有label，不加overwrite会报错。
+k label --overwrite pod nginx-cm run=nginx-update
+
+
+selector如果用matchExpressions匹配的话，有四种：
+In
+Notin
+Exists
+DoesNotExist
+
+列出label中key是run，但没有key是pod-template-hash的pod
+k get po -l 'run,!pod-template-hash'
 
 
 

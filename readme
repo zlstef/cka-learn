@@ -235,6 +235,25 @@ DoesNotExist
 k get po -l 'run,!pod-template-hash'
 
 
+------------------------
+测试滚动更新业务是否会中断
 
+已有一个nginx的deployment
+kubectl expose deploy/mynginx --type nodeport --port 8080
+
+用以下脚本访问nginx服务
+while true
+    do
+        curl 10.177.10.3:30128
+        sleep 1s
+    done
+
+更新镜像
+kubectl set image deployments/mynginx  mynginx=nginx:1.9.1
+kubectl set image deployments/mynginx  mynginx=nginx:1.7.1
+
+kubectl get po -w 
+
+能看到是先创建新的pod，当新pod是running状态时，再删除旧pod。服务没有中断。
 
 

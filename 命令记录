@@ -1,0 +1,495 @@
+
+以yaml/json形式查看pod的详细信息
+kubectl -n low-usage-limit get pod limited-hog-2556092078-wnpnv -o yaml
+
+
+使用--export参数去掉特殊参数，例如status、creationTimestamp，
+kubectl get deployment hog --export -o yaml > hog.yaml
+
+
+
+使用新yaml文件部署现有deployment
+kubectl replace -f hog.yaml
+
+
+使用less形式查看输出
+kubectl get deployment hog -o yaml |less
+
+limitrange创建出来后，在该namespace下的pod自动继承该limitrange中的设置。
+
+
+连到容器里面的bash或shell
+kubectl exec -it shell-demo -- /bin/bash
+
+kubectl -n kube-system exec -it etcd-minikube -- /bin/sh
+
+有的容器报错
+kubectl -n low-usage-limit exec -it limited-hog-565b5b4698-djb44 -- /bin/sh
+Unable to use a TTY - input is not a terminal or the right kind of file
+OCI runtime exec failed: exec failed: container_linux.go:348: starting container process caused "exec: \"/bin/sh\": stat /bin/sh: no such file or directory": unknown
+command terminated with exit code 126
+
+
+grep image complete-demo.yaml
+
+
+列出容器数量
+docker ps | wc -l
+
+
+
+验证是否有权限从yaml文件创建对象，没有输出表示允许。
+ kubectl auth reconcile -f hog.yaml --dry-run
+ 
+ 
+ 
+ 
+ curl -k -v -XGET  -H "Accept: application/json;as=Table;v=v1beta1;g=meta.k8s.io, application/json" -H "User-Agent: kubectl.exe/v1.11.0 (windows/amd64) kubernetes/91e7b4f" 'https://192.168.99.100:8443/api/v1/namespaces/kube-system/pods/etcd-minikube'
+ 
+ 
+ 查看 ./kube/config的内容，主要是证书信息
+ kubectl config view
+ 
+ 
+ 
+  kubectl describe ns low-usage-limit
+Name:         low-usage-limit
+Labels:       <none>
+Annotations:  <none>
+Status:       Active
+
+No resource quota.
+
+Resource Limits
+ Type       Resource  Min  Max  Default Request  Default Limit  Max Limit/Request Ratio
+ ----       --------  ---  ---  ---------------  -------------  -----------------------
+ Container  cpu       -    -    500m             1              -
+ Container  memory    -    -    100Mi            500Mi          -
+
+ 将某个deployment的副本数改变
+ kubectl scale deploy/dev-web  --replicas=4
+ 
+ 
+ 使用edit可以直接更新某个deployment，编辑完后会触发rolling update
+ kubectl edit deployment nginx
+ 
+ 
+ 将镜像改为0.9，--record可以把操作记录在annotation里
+ kubectl set image deployment/ghost ghost=ghost0.9 --record
+ 
+ 
+ 查看某个deploy的历史
+ $ kubectl rollout history deployment/ghost
+deployments "ghost"
+REVISION  CHANGE-CAUSE
+1         kubectl.exe run ghost --image=ghost --record=true
+2         kubectl.exe run ghost --image=ghost --record=true
+ 
+ 
+ 
+ 回滚某个deployment到上一个revision
+  kubectl rollout undo deploy/ghost
+  
+  --to-revision=5指定回滚到某个revision
+  kubectl rollout undo deploy/ghost --to-revision=5
+ 
+ 
+ 
+
+ $ kubectl rollout pause deploy/ghost
+deployment.extensions/ghost paused
+
+
+$ kubectl rollout resume deploy/ghost
+deployment.extensions/ghost resumed
+ 
+ 列出指定label的pod
+ kubectl get po -l run=ghost
+ 
+ kubectl get po -Lrun
+ -L 列出指定的label的行
+ kubectl get po -Lrun -L app 
+ kubectl get po -Lrun,app 
+NAME                                READY   STATUS        RESTARTS   AGE     RUN              APP
+abc-64c8ddcc94-rhtg7                1/1     Running       0          12m                      abc
+busybox                             0/1     Completed     0          59m     busybox          
+liveness-exec                       1/1     Terminating   0          2d21h                    
+liveness-http                       1/1     Terminating   0          2d21h                    
+load-generator-5ff6784f85-fkx5v     1/1     Running       0          22h     load-generator   
+nginx-deployment-57895845b8-97txb   1/1     Running       0          11h                      nginx
+ 
+ 
+ 
+ 列出pod的label
+ $ kubectl get po --show-labels
+NAME                    READY     STATUS    RESTARTS   AGE       LABELS
+ghost-8b5b9d7fd-g7n5g   1/1       Running   0          2m        pod-template-hash=461658398,run=ghost
+ 
+ 
+ 删除指定label的pod
+ kubectl delete po -l system=IsolatedPod
+ 
+  
+  查看某个revision的具体设置
+ kubectl rollout history ds ds-one --revision=1
+ 
+  查看node上的taint 污点
+ kubectl get nodes -o json | grep taint -A2/C2
+ 
+ 
+ 查看一个role的权限verbs
+ kubectl describe role dev-prod -n production
+ 
+ kubectl 自动补偿
+ source <(kubectl completion bash)
+ 
+ alias和自动补齐一起使用 -- （complete -o default -F __start_kubectl k）
+ Autocompletion for alias commands was supported on v1.10! You can enable it with the following steps:
+
+# For bash
+source /path/to/bash_completion
+source <(kubectl completion bash)
+alias k=kubectl
+complete -o default -F __start_kubectl k
+
+# For zsh
+source <(kubectl completion zsh)
+alias k=kubectl
+complete -o default -F __start_kubectl k
+ 
+ 
+ 
+ 快捷键
+ vi /etc/bashrc
+ source /etc/bashrc
+alias k='kubectl'
+alias kgp='kubectl get pods'
+alias kgs='kubectl get svc'
+alias kgc='kubectl get componentstatus'
+
+
+tmux
+https://blog.csdn.net/a1181986340/article/details/51727297
+ ctrl+b 再按s   选择并切换会话；在同时开启了多个会话时使用
+ ctrl+b     ”	将当前面板平分为上下两块
+ ctrl+b     %	将当前面板平分为左右两块
+  
+  
+  
+需要用--sort-by 排序时，先kgs nginx-one -o json 获取对象的json参数，然后根据具体参数来排序
+kgs --sort-by='{.spec.clusterIP}'
+kgs --sort-by=.spec.clusterIP
+
+
+查看kubelet日志
+  journalctl -u kubelet
+  
+  从命令行创建deploy
+ 
+ k run buxybox --image=busybox3.2   -o yaml --dry-run > busybox.yaml
+ 
+ kc deploy nginx --image=nginx -o yaml --dry-run > nginx.yaml
+ 
+ k expose deployment buxybox --port 3333 --target-port=4444 -o yaml --dry-run > busybox-svc.yaml
+ 
+ 
+ k run nginx --image=nginx -l app=frontend --replicas=5 
+  k run -it  busybox --image=busybox --restart=Never --command sh
+  
+ 指定context
+kubectl --context=kubernetes-the-hard-way get pods 
+  
+  
+  
+  用"\t"表示用tab键分隔
+  kgd -n kube-system | sed '1d' | awk '{print $1"\t"$6}'
+busybox 24h
+coredns 8d
+kubernetes-dashboard    5d17h
+zlstefans@master-1:~/lab$ kgd -n kube-system | sed '1d' | awk '{print $1"\t\t"$6}'
+busybox         24h
+coredns         8d
+kubernetes-dashboard            5d17h
+  按照容量进行排序
+  kg pv --sort-by=.spec.capacity.storage | sed '1d'| awk '{print $1"\t"$2"\t"$5}'
+task-pv-volume  10Gi    Available
+mysql-pv-volume 20Gi    Released
+  
+  用sort对第2行的容量进行排序 用-k指定，-n 按照数字排序, sort-by默认从小到大，从大到小要用 -r
+  k get  pv --sort-by=.spec.capacity.storage | sed '1d'| awk '{print $1 "\t""\t" $2}'|sort  -k 2 -n -r
+  
+  
+  echo -n  参数-n表示不要换行，即不补上换行符
+  zlstefans@master-1:~/lab$ echo abc
+abc
+zlstefans@master-1:~/lab$ echo -n abc
+abczlstefans@master-1:~/lab$
+  
+  
+  
+  
+  以下3种命令的写法都可以
+      command: ['sh']
+      args: ['-c', 'touch /data/abcddd.txt']
+	  
+	  command: ['sh', '-c', 'touch /data/fefafd.txt']
+  
+      command: ['/bin/sh', '-c']
+      args: ["echo 'hello' > /data/abcddd.txt; cat /data/abcddd.txt; cp /data/abcddd.txt /root/a.txt; sleep 3600"
+
+	  
+   k run buxybox --image=busybox --restart=Never --command /bin/echo hello
+   
+   
+   
+   imagePullSecrets
+   
+   kubectl create secret docker-registry regcred --docker-server=<your-registry-server> --docker-username=<your-name> --docker-password=<your-pword> --docker-email=<your-email>
+   
+   jsonpath 注意双引号
+   kubectl get secret regcred --output=jsonpath=“{.data.\.dockerconfigjson}" | base64 --decode
+   
+   
+   引用imagePullSecrets的时候注意是spec.imagePullSecrets. :
+apiVersion: v1
+kind: Pod
+metadata:
+  name: private-reg
+spec:
+  containers:
+  - name: private-reg-container
+    image: <your-private-image>
+  imagePullSecrets:
+  - name: regcred
+   
+使用prune开关，例如，如果要排除misc目录，只需向find命令添加-path ./misc -prune -o：
+find . -path ./misc -prune -o -name '*.txt' -print
+下面是一个有多个目录的例子：
+
+find . -type d \( -path dir1 -o -path dir2 -o -path dir3 \) -prune -o -print
+在这里，我们排除dir1，dir2和dir3，因为在find表达式中它是一个操作，作用于条件-path dir1 -o -path dir2 -o -path dir3(如果dir1或dir2或dir3)，与类型-d 。进一步的行动是-o打印，只是打印。
+
+
+
+访问api。使用curl待证书信息访问api，注意需要提供key文件，没有key文件会返回
+curl: (35) error reading X.509 key or certificate file: Error in parsing.  
+
+curl  https://34.73.138.106:6443/api/v1/namespaces/default/serviceaccounts/build-robot --key  /home/zlstefans/admin-key.pem --key-type PEM  --cacert /home/zlstefans/ca.pem --cert /home/zlstefans/admin.pem --cert-type PEM
+
+
+LimitRange是限制单个容器
+ResourceQuota是限制整个namespace
+
+用patch更改对象的设置
+k patch pv task-pv-volume -p '{"spec":{"capacity":{"storage":"18Gi"}}}'
+
+patch 可以使用 yaml或json文件、格式
+
+strategic merge  有时是replace，有时是merge，取决于源码里的patchStrategy
+json merge, 对于json merge，如果需要更新list，需要指定整个新的list。新的list会replace现有的list。
+
+
+kubectl replace 可以用--force参数强制更新一下初始化后无法更新的属性
+
+kubectl apply 加 --record可以把操作记录在annotation里, 也有 --force参数。和replace的force区别？
+
+
+pv\pvc可以没有StorageClass
+
+
+kube-proxy 负责监听api-server关于service、endpoint的变更，维护相关记录。
+如果停止kube-proxy，已创建的服务关系不受影响，仍然可以访问。新创建的服务关系会受影响，因为没有相关记录被kube-proxy创建。
+
+k run busybox --image=busybox --restart=Never  --command -- 'sh' '-c' 'echo' 'hi'
+
+
+
+
+
+
+roleRef部分指定使用的role，subjects部分指定要bind的用户
+[root@k8s-lab2 lab]# kubectl get rolebinding -n development developer-role-binding  -o yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  creationTimestamp: 2019-01-03T13:00:26Z
+  name: developer-role-binding
+  namespace: development
+  resourceVersion: "4397469"
+  selfLink: /apis/rbac.authorization.k8s.io/v1/namespaces/development/rolebindings/developer-role-binding
+  uid: 89d8a8b6-0f57-11e9-9d72-fa163eadf6b8
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: developer
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: User
+  name: DevDan
+
+
+  
+在kubeconfig里的context和users部分，就可以指定对应的用户，以和rolebinding里的subject一致
+  
+[root@k8s-lab2 lab]# kubectl config  view
+apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority-data: REDACTED
+    server: https://10.177.16.113:6443
+  name: kubernetes
+contexts:
+- context:
+    cluster: kubernetes
+    namespace: development
+    user: DevDan
+  name: DevDan-context
+- context:
+    cluster: kubernetes
+    namespace: production
+    user: DevDan
+  name: ProdDan-context
+- context:
+    cluster: kubernetes
+    user: kubernetes-admin
+  name: kubernetes-admin@kubernetes
+current-context: kubernetes-admin@kubernetes
+kind: Config
+preferences: {}
+users:
+- name: DevDan
+  user:
+    client-certificate: /home/student/DevDan.crt
+    client-key: /home/student/DevDan.key
+- name: kubernetes-admin
+  user:
+    client-certificate-data: REDACTED
+    client-key-data: REDACTED
+	
+	
+	
+	
+
+
+让新的节点加入集群需要以下步骤：
+1. 创建ca 和 ca-key
+2. 将ca、ca-key分发到master节点
+3. 为kubelet创建ca和key
+4. 用ca-key对kubelet的ca签名
+5. 将kubelet的ca、ca-key分发到node
+
+
+TLS bootstrapping是为了简化并自动化步骤3之后的步骤
+
+bootstrap初始化主要步骤：
+1. kubelet启动发现找不到kubeconfig文件
+2. kubelet搜索并找到bootstrap-kubeconfig文件，获得api-server的url和受限的token
+3. kubelet与api-server认证，并创建csr
+4. csr被approve
+5. ca、ca-key被创建、颁发给kubelet
+6. kubelet用ca、ca-key创建kubeconfig文件
+7. kubelet可以正常与api-server认证
+
+
+
+
+1. kubelet在初始化阶段用 bootstrap-token与api-server认证，此时只有有限的权限-- 此时kubelet被认证为 system:bootstrappers 组里的用户。这个组做了clusterrolebinding，有权限创建csr。
+     
+bootstrap-kubeconfig.yaml里有类似下面的内容，其中token指定了使用的其实是bootstrap-token-aa41e2这个secret	 
+	 users:
+- name: tls-bootstrap-token-user
+  user:
+    token: aa41e2.58185ce9b3021d79
+
+
+auth-extra-groups就是表明使用此token进行认证的group是哪个group
+# Extra groups to authenticate the token as. Must start with "system:bootstrappers:"
+  auth-extra-groups: system:bootstrappers:worker,system:bootstrappers:ingress	
+  
+[root@k8s-lab2 lab]# echo c3lzdGVtOmJvb3RzdHJhcHBlcnM6a3ViZWFkbTpkZWZhdWx0LW5vZGUtdG9rZW4= | base64 -d
+system:bootstrappers:kubeadm:default-node-token
+
+  
+[root@k8s-lab2 ~]# kubectl -n kube-system get secret bootstrap-token-aa41e2 -o yaml
+apiVersion: v1
+data:
+  auth-extra-groups: c3lzdGVtOmJvb3RzdHJhcHBlcnM6a3ViZWFkbTpkZWZhdWx0LW5vZGUtdG9rZW4=
+  description: VGhlIGRlZmF1bHQgYm9vdHN0cmFwIHRva2VuIGdlbmVyYXRlZCBieSAna3ViZWFkbSBpbml0Jy4=
+  token-id: YWE0MWUy
+  token-secret: NTgxODVjZTliMzAyMWQ3OQ==
+  usage-bootstrap-authentication: dHJ1ZQ==
+  usage-bootstrap-signing: dHJ1ZQ==
+kind: Secret
+metadata:
+  creationTimestamp: 2018-11-22T09:15:44Z
+  name: bootstrap-token-aa41e2
+  namespace: kube-system
+  resourceVersion: "166"
+  selfLink: /api/v1/namespaces/kube-system/secrets/bootstrap-token-aa41e2
+  uid: 310946ed-ee37-11e8-9d72-fa163eadf6b8
+type: bootstrap.kubernetes.io/token
+
+token-id就是bootstrap-kubeconfig里指的
+[root@k8s-lab2 ~]# echo YWE0MWUy | base64 -d
+aa41e2  
+  
+2. 认证后授权kubelet创建csr  
+3. csr被自动、手动approve后，kubelet可以正常与api-server认证
+
+
+
+使用cfssl创建ca和自签名cert
+1. 使用default模板创建配置和csr
+cfssl print-defaults config > ca-config.json
+cfssl print-defaults csr > ca-csr.json
+
+2. 创建ca，使用 initca参数。根据需要修改ca-csr.json。
+$ cfssl gencert -initca ca-csr.json
+
+cfssl创建的内容默认输出到标准输出，需要使用cfssljson输出到文件。
+cfssl gencert -initca ca-csr.json | cfssljson -bare selfca
+
+3. 现在有了ca的cert和key，可以为其他entity办法cert并签名了。
+可以根据需要修改default创建的ca-config.json，比如profile，usage等内容。
+可以根据需要修改default创建的ca-csr.json，比如CN、hosts等内容。
+有些证书需要hostname，可以是主机名、ip等。比如kubelet、kube-apiserver等。
+如果csr里已经写了hosts的配置，命令里面就不用带 -hostname参数了。
+cfssl gencert -ca selfca.pem -ca-key selfca-key.pem -config api-config.json -profile kube-apiserver -hostname controller-4,controller-5 api-csr.json | cfssljson -bare kube-api
+
+4. 一般一个cluster里不同entity使用的ca-config.json一样，crs.json不一样。主要是CN、O等内容不同，标识不同entity。	
+
+
+用 label --overwrite直接更改现有label，不加overwrite会报错。
+k label --overwrite pod nginx-cm run=nginx-update
+
+
+selector如果用matchExpressions匹配的话，有四种：
+In
+Notin
+Exists
+DoesNotExist
+
+列出label中key是run，但没有key是pod-template-hash的pod
+k get po -l 'run,!pod-template-hash'
+
+
+------------------------
+测试滚动更新业务是否会中断
+
+已有一个nginx的deployment
+kubectl expose deploy/mynginx --type nodeport --port 8080
+
+用以下脚本访问nginx服务
+while true
+    do
+        curl 10.177.10.3:30128
+        sleep 1s
+    done
+
+更新镜像
+kubectl set image deployments/mynginx  mynginx=nginx:1.9.1
+kubectl set image deployments/mynginx  mynginx=nginx:1.7.1
+
+kubectl get po -w 
+
+能看到是先创建新的pod，当新pod是running状态时，再删除旧pod。服务没有中断。

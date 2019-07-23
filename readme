@@ -20,7 +20,7 @@ kubectl get node --kubeconfig=/root/.kube/config2
 【更新】：命令行也可以支持多个命令
 
 kubectl exec -t web-687b9ff84-vfk27 -- sh -c "wget mynginx; cat index.html"
-
+kubectl exec -t web-687b9ff84-vfk27 -- sh -c "wget --no-check-certificate ext-ip-rancher && cat index.html"
 
 sed
 awk
